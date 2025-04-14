@@ -29,6 +29,110 @@ function generateID() {
   return "_" + Math.random().toString(36).substr(2, 9);
 }
 
+// Advanced Task Statistics and Analytics
+function generateTaskStatistics() {
+  // Create statistics object to store all analytics
+  const statistics = {
+    totalTasks: tasks.length,
+    completedTasks: 0,
+    pendingTasks: 0,
+    overdueTasks: 0,
+    priorityBreakdown: {
+      high: 0,
+      medium: 0,
+      low: 0
+    },
+    completionRate: 0,
+    averageCompletionTime: 0,
+    mostProductiveDay: null,
+    tasksByDay: {},
+    completionTimeData: []
+  };
+  
+  // Get current date for overdue calculation
+  const currentDate = new Date();
+  
+  // Process each task for statistics
+  tasks.forEach(task => {
+    // Count completed and pending
+    if (task.completed) {
+      statistics.completedTasks++;
+      
+      // Track completion time if available
+      if (task.completedDate && task.createdDate) {
+        const completionTime = new Date(task.completedDate) - new Date(task.createdDate);
+        statistics.completionTimeData.push(completionTime);
+      }
+    } else {
+      statistics.pendingTasks++;
+      
+      // Check if task is overdue
+      if (task.due && new Date(task.due) < currentDate) {
+        statistics.overdueTasks++;
+      }
+    }
+    
+    // Track priority breakdown
+    if (task.priority) {
+      statistics.priorityBreakdown[task.priority]++;
+    }
+    
+    // Track tasks by day of week
+    if (task.createdDate) {
+      const dayOfWeek = new Date(task.createdDate).toLocaleDateString('en-US', { weekday: 'long' });
+      statistics.tasksByDay[dayOfWeek] = (statistics.tasksByDay[dayOfWeek] || 0) + 1;
+    }
+  });
+  
+  // Calculate completion rate
+  if (statistics.totalTasks > 0) {
+    statistics.completionRate = (statistics.completedTasks / statistics.totalTasks) * 100;
+  }
+  
+  // Calculate average completion time
+  if (statistics.completionTimeData.length > 0) {
+    const totalCompletionTime = statistics.completionTimeData.reduce((sum, time) => sum + time, 0);
+    statistics.averageCompletionTime = totalCompletionTime / statistics.completionTimeData.length;
+    // Convert to hours
+    statistics.averageCompletionTime = Math.round(statistics.averageCompletionTime / (1000 * 60 * 60) * 10) / 10;
+  }
+  
+  // Find most productive day
+  if (Object.keys(statistics.tasksByDay).length > 0) {
+    statistics.mostProductiveDay = Object.keys(statistics.tasksByDay).reduce((a, b) => 
+      statistics.tasksByDay[a] > statistics.tasksByDay[b] ? a : b
+    );
+  }
+  
+  // Generate HTML report
+  const reportContainer = document.createElement('div');
+  reportContainer.className = 'statistics-report';
+  
+  // Create report header
+  const header = document.createElement('h2');
+  header.textContent = 'Task Statistics and Analytics';
+  reportContainer.appendChild(header);
+  
+  // Create summary section
+  const summary = document.createElement('div');
+  summary.className = 'stat-summary';
+  summary.innerHTML = `
+    <p>Total Tasks: <strong>${statistics.totalTasks}</strong></p>
+    <p>Completed: <strong>${statistics.completedTasks}</strong> (${statistics.completionRate.toFixed(1)}%)</p>
+    <p>Pending: <strong>${statistics.pendingTasks}</strong></p>
+    <p>Overdue: <strong>${statistics.overdueTasks}</strong></p>
+    <p>Average Completion Time: <strong>${statistics.averageCompletionTime}</strong> hours</p>
+    <p>Most Productive Day: <strong>${statistics.mostProductiveDay || 'N/A'}</strong></p>
+  `;
+  reportContainer.appendChild(summary);
+  
+  // Return the statistics and the report element
+  return {
+    data: statistics,
+    reportElement: reportContainer
+  };
+}
+
 // Task rendering
 function renderTasks(filter = "") {
   taskList.innerHTML = "";
