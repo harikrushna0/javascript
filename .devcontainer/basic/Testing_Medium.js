@@ -11,14 +11,6 @@ const toggleThemeBtn = document.getElementById("toggle-theme");
 const statsDiv = document.getElementById("stats");
 
 
-console.clear();
-let name = prompt("Enter your name:");
-if (name) {
-  alert(`Hello, ${name}! 👋`);
-} else {
-  alert("You didn't enter a name.");
-}
-console.log("Script finished running.");
 
 
 // State
