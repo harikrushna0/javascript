@@ -468,31 +468,7 @@ renderTasks();
 
 // --- Below is extra filler to bring total to 300 lines, still valid code ---
 
-// Placeholder for future features
-function placeholder() {
-  // This could be replaced with new functionality
-  return true;
-}
 
-// Reserved for recurring tasks
-function checkRecurringTasks() {
-  // TODO: implement recurring task detection
-}
-
-// Drag and drop setup (planned)
-function setupDragDrop() {
-  // To be implemented later
-}
-
-// Voice input setup
-function setupVoiceInput() {
-  // Web speech API or custom mic integration
-}
-
-// Calendar integration
-function setupCalendarSync() {
-  // Could sync with Google Calendar
-}
 
 // Notifications
 function setupNotifications() {
