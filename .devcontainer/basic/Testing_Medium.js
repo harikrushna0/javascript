@@ -41,6 +41,91 @@ function formatDate(dateStr) {
   return date.toLocaleDateString();
 }
 
+// Task Analytics - Add this function
+function generateTaskAnalytics() {
+  // Create analytics container
+  const analyticsDiv = document.createElement("div");
+  analyticsDiv.className = "analytics-container";
+  analyticsDiv.innerHTML = "<h3>Task Analytics Dashboard</h3>";
+  
+  // Calculate time-based metrics
+  const currentDate = new Date();
+  const overdueTasks = tasks.filter(task => {
+    if (!task.completed && task.dueDate) {
+      return new Date(task.dueDate) < currentDate;
+    }
+    return false;
+  });
+  
+  // Calculate priority distribution
+  const priorityCount = {
+    high: tasks.filter(t => t.priority === 'high').length,
+    normal: tasks.filter(t => t.priority === 'normal').length,
+    low: tasks.filter(t => t.priority === 'low').length
+  };
+  
+  // Calculate completion rate
+  const completionRate = tasks.length > 0 
+    ? Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100) 
+    : 0;
+  
+  // Calculate average completion time for completed tasks
+  let avgCompletionTime = "N/A";
+  const completedTasks = tasks.filter(t => t.completed && t.completedAt);
+  if (completedTasks.length > 0) {
+    const totalTimeMs = completedTasks.reduce((sum, task) => {
+      const created = new Date(task.createdAt);
+      const completed = new Date(task.completedAt);
+      return sum + (completed - created);
+    }, 0);
+    const avgTimeMs = totalTimeMs / completedTasks.length;
+    const avgHours = Math.round(avgTimeMs / (1000 * 60 * 60));
+    avgCompletionTime = `${avgHours} hours`;
+  }
+  
+  // Create metrics display
+  const metricsHTML = `
+    <div class="analytics-metrics">
+      <div class="metric">
+        <span class="metric-value">${overdueTasks.length}</span>
+        <span class="metric-label">Overdue Tasks</span>
+      </div>
+      <div class="metric">
+        <span class="metric-value">${completionRate}%</span>
+        <span class="metric-label">Completion Rate</span>
+      </div>
+      <div class="metric">
+        <span class="metric-value">${avgCompletionTime}</span>
+        <span class="metric-label">Avg Completion Time</span>
+      </div>
+    </div>
+    <div class="priority-distribution">
+      <h4>Priority Distribution:</h4>
+      <div class="priority-bar">
+        <div class="priority-segment high" style="width:${priorityCount.high / tasks.length * 100}%">${priorityCount.high}</div>
+        <div class="priority-segment normal" style="width:${priorityCount.normal / tasks.length * 100}%">${priorityCount.normal}</div>
+        <div class="priority-segment low" style="width:${priorityCount.low / tasks.length * 100}%">${priorityCount.low}</div>
+      </div>
+      <div class="priority-legend">
+        <span class="legend-item high">High</span>
+        <span class="legend-item normal">Normal</span>
+        <span class="legend-item low">Low</span>
+      </div>
+    </div>
+  `;
+  
+  analyticsDiv.innerHTML += metricsHTML;
+  
+  // Add to document
+  const mainContainer = document.querySelector(".container");
+  const existingAnalytics = document.querySelector(".analytics-container");
+  
+  if (existingAnalytics) {
+    mainContainer.replaceChild(analyticsDiv, existingAnalytics);
+  } else {
+    mainContainer.appendChild(analyticsDiv);
+  }
+}
 // Task Rendering
 function renderTasks() {
   taskList.innerHTML = "";
