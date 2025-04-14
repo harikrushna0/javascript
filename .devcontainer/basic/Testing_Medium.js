@@ -224,8 +224,35 @@ function deleteTask(index) {
 
 function toggleComplete(index) {
   tasks[index].completed = !tasks[index].completed;
+  
+  // Add timestamp when task is completed
+  if (tasks[index].completed) {
+    tasks[index].completedAt = new Date().toISOString();
+    
+    // Show congratulatory message
+    const taskText = tasks[index].text;
+    const notification = document.createElement("div");
+    notification.className = "completion-notification";
+    notification.textContent = `🎉 Congratulations! You completed "${taskText}"`;
+    document.body.appendChild(notification);
+    
+    // Remove notification after 3 seconds
+    setTimeout(() => {
+      notification.classList.add("fade-out");
+      setTimeout(() => document.body.removeChild(notification), 500);
+    }, 3000);
+  } else {
+    // Remove completion timestamp if task is unchecked
+    delete tasks[index].completedAt;
+  }
+  
   saveState();
   renderTasks();
+  
+  // Update analytics if they're being displayed
+  if (document.querySelector(".analytics-container")) {
+    generateTaskAnalytics();
+  }
 }
 
 function deleteCompleted() {
