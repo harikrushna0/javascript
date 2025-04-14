@@ -46,11 +46,24 @@ function generateTaskStatistics() {
     averageCompletionTime: 0,
     mostProductiveDay: null,
     tasksByDay: {},
-    completionTimeData: []
+    completionTimeData: [],
+    tasksByMonth: {},
+    taskTrends: {
+      lastWeek: 0,
+      lastMonth: 0,
+      trend: 'stable'
+    },
+    tagsAnalysis: {},
+    longestTask: null,
+    shortestTask: null,
+    productivityScore: 0
   };
   
   // Get current date for overdue calculation
   const currentDate = new Date();
+  const oneWeekAgo = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const oneMonthAgo = new Date(currentDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const twoMonthsAgo = new Date(currentDate.getTime() - 60 * 24 * 60 * 60 * 1000);
   
   // Process each task for statistics
   tasks.forEach(task => {
@@ -61,7 +74,40 @@ function generateTaskStatistics() {
       // Track completion time if available
       if (task.completedDate && task.createdDate) {
         const completionTime = new Date(task.completedDate) - new Date(task.createdDate);
-        statistics.completionTimeData.push(completionTime);
+        statistics.completionTimeData.push({
+          id: task.id,
+          text: task.text,
+          time: completionTime,
+          priority: task.priority
+        });
+        
+        // Check for longest and shortest tasks
+        if (!statistics.longestTask || completionTime > statistics.longestTask.time) {
+          statistics.longestTask = {
+            text: task.text,
+            time: completionTime,
+            timeInHours: Math.round(completionTime / (1000 * 60 * 60) * 10) / 10
+          };
+        }
+        
+        if (!statistics.shortestTask || completionTime < statistics.shortestTask.time) {
+          statistics.shortestTask = {
+            text: task.text,
+            time: completionTime,
+            timeInHours: Math.round(completionTime / (1000 * 60 * 60) * 10) / 10
+          };
+        }
+      }
+      
+      // Track when tasks were completed for trends
+      if (task.completedDate) {
+        const completedDate = new Date(task.completedDate);
+        if (completedDate >= oneWeekAgo) {
+          statistics.taskTrends.lastWeek++;
+        }
+        if (completedDate >= oneMonthAgo) {
+          statistics.taskTrends.lastMonth++;
+        }
       }
     } else {
       statistics.pendingTasks++;
@@ -79,8 +125,33 @@ function generateTaskStatistics() {
     
     // Track tasks by day of week
     if (task.createdDate) {
-      const dayOfWeek = new Date(task.createdDate).toLocaleDateString('en-US', { weekday: 'long' });
+      const createdDate = new Date(task.createdDate);
+      const dayOfWeek = createdDate.toLocaleDateString('en-US', { weekday: 'long' });
       statistics.tasksByDay[dayOfWeek] = (statistics.tasksByDay[dayOfWeek] || 0) + 1;
+      
+      // Track tasks by month
+      const month = createdDate.toLocaleDateString('en-US', { month: 'long' });
+      statistics.tasksByMonth[month] = (statistics.tasksByMonth[month] || 0) + 1;
+    }
+    
+    // Track tags if they exist
+    if (task.tags && Array.isArray(task.tags)) {
+      task.tags.forEach(tag => {
+        if (!statistics.tagsAnalysis[tag]) {
+          statistics.tagsAnalysis[tag] = {
+            count: 0,
+            completed: 0,
+            pending: 0
+          };
+        }
+        
+        statistics.tagsAnalysis[tag].count++;
+        if (task.completed) {
+          statistics.tagsAnalysis[tag].completed++;
+        } else {
+          statistics.tagsAnalysis[tag].pending++;
+        }
+      });
     }
   });
   
@@ -91,7 +162,7 @@ function generateTaskStatistics() {
   
   // Calculate average completion time
   if (statistics.completionTimeData.length > 0) {
-    const totalCompletionTime = statistics.completionTimeData.reduce((sum, time) => sum + time, 0);
+    const totalCompletionTime = statistics.completionTimeData.reduce((sum, item) => sum + item.time, 0);
     statistics.averageCompletionTime = totalCompletionTime / statistics.completionTimeData.length;
     // Convert to hours
     statistics.averageCompletionTime = Math.round(statistics.averageCompletionTime / (1000 * 60 * 60) * 10) / 10;
@@ -104,6 +175,43 @@ function generateTaskStatistics() {
     );
   }
   
+  // Calculate task trend
+  const previousMonthTasks = tasks.filter(task => {
+    if (!task.completedDate) return false;
+    const completedDate = new Date(task.completedDate);
+    return completedDate >= twoMonthsAgo && completedDate < oneMonthAgo;
+  }).length;
+  
+  if (statistics.taskTrends.lastMonth > previousMonthTasks * 1.2) {
+    statistics.taskTrends.trend = 'increasing';
+  } else if (statistics.taskTrends.lastMonth < previousMonthTasks * 0.8) {
+    statistics.taskTrends.trend = 'decreasing';
+  } else {
+    statistics.taskTrends.trend = 'stable';
+  }
+  
+  // Calculate productivity score (simple algorithm based on completion rate and priorities)
+  const priorityWeights = { high: 3, medium: 2, low: 1 };
+  let weightedCompletedTasks = 0;
+  
+  statistics.completionTimeData.forEach(item => {
+    const weight = priorityWeights[item.priority] || 1;
+    weightedCompletedTasks += weight;
+  });
+  
+  if (statistics.totalTasks > 0) {
+    // Base score on completion rate (max 70 points)
+    const completionPoints = Math.min(70, statistics.completionRate * 0.7);
+    
+    // Add points for completing high priority tasks (max 20 points)
+    const priorityPoints = Math.min(20, (weightedCompletedTasks / statistics.totalTasks) * 20);
+    
+    // Add points for timeliness (max 10 points)
+    const timelinessPoints = Math.max(0, 10 - (statistics.overdueTasks / statistics.totalTasks) * 10);
+    
+    statistics.productivityScore = Math.round(completionPoints + priorityPoints + timelinessPoints);
+  }
+  
   // Generate HTML report
   const reportContainer = document.createElement('div');
   reportContainer.className = 'statistics-report';
@@ -112,6 +220,31 @@ function generateTaskStatistics() {
   const header = document.createElement('h2');
   header.textContent = 'Task Statistics and Analytics';
   reportContainer.appendChild(header);
+  
+  // Create productivity score display
+  const scoreSection = document.createElement('div');
+  scoreSection.className = 'productivity-score';
+  
+  const scoreDisplay = document.createElement('div');
+  scoreDisplay.className = 'score-display';
+  
+  const scoreValue = document.createElement('span');
+  scoreValue.textContent = statistics.productivityScore;
+  scoreValue.className = 'score-value';
+  
+  const scoreLabel = document.createElement('span');
+  scoreLabel.textContent = '/100';
+  scoreLabel.className = 'score-label';
+  
+  scoreDisplay.appendChild(scoreValue);
+  scoreDisplay.appendChild(scoreLabel);
+  
+  const scoreTitle = document.createElement('h3');
+  scoreTitle.textContent = 'Productivity Score';
+  
+  scoreSection.appendChild(scoreTitle);
+  scoreSection.appendChild(scoreDisplay);
+  reportContainer.appendChild(scoreSection);
   
   // Create summary section
   const summary = document.createElement('div');
@@ -123,16 +256,89 @@ function generateTaskStatistics() {
     <p>Overdue: <strong>${statistics.overdueTasks}</strong></p>
     <p>Average Completion Time: <strong>${statistics.averageCompletionTime}</strong> hours</p>
     <p>Most Productive Day: <strong>${statistics.mostProductiveDay || 'N/A'}</strong></p>
+    <p>Task Trend: <strong>${statistics.taskTrends.trend}</strong></p>
   `;
   reportContainer.appendChild(summary);
+  
+  // Create priority breakdown chart
+  const prioritySection = document.createElement('div');
+  prioritySection.className = 'priority-section';
+  
+  const priorityTitle = document.createElement('h3');
+  priorityTitle.textContent = 'Priority Breakdown';
+  prioritySection.appendChild(priorityTitle);
+  
+  const priorityChart = document.createElement('div');
+  priorityChart.className = 'priority-chart';
+  
+  // Create visual bar chart
+  Object.keys(statistics.priorityBreakdown).forEach(priority => {
+    const priorityBar = document.createElement('div');
+    priorityBar.className = `priority-bar ${priority}`;
+    
+    const percentage = statistics.totalTasks > 0 ? 
+      (statistics.priorityBreakdown[priority] / statistics.totalTasks) * 100 : 0;
+    
+    priorityBar.style.width = `${percentage}%`;
+    priorityBar.innerHTML = `
+      <span class="priority-label">${priority}</span>
+      <span class="priority-count">${statistics.priorityBreakdown[priority]}</span>
+    `;
+    
+    priorityChart.appendChild(priorityBar);
+  });
+  
+  prioritySection.appendChild(priorityChart);
+  reportContainer.appendChild(prioritySection);
+  
+  // Add completion time insights
+  if (statistics.longestTask && statistics.shortestTask) {
+    const timeInsights = document.createElement('div');
+    timeInsights.className = 'time-insights';
+    
+    const timeTitle = document.createElement('h3');
+    timeTitle.textContent = 'Time Insights';
+    timeInsights.appendChild(timeTitle);
+    
+    const timeInfo = document.createElement('div');
+    timeInfo.className = 'time-info';
+    timeInfo.innerHTML = `
+      <p>Longest Task: <strong>${statistics.longestTask.text}</strong> (${statistics.longestTask.timeInHours} hours)</p>
+      <p>Shortest Task: <strong>${statistics.shortestTask.text}</strong> (${statistics.shortestTask.timeInHours} hours)</p>
+    `;
+    
+    timeInsights.appendChild(timeInfo);
+    reportContainer.appendChild(timeInsights);
+  }
+  
+  // Create export functionality
+  const exportButton = document.createElement('button');
+  exportButton.textContent = 'Export Statistics';
+  exportButton.className = 'export-stats-btn';
+  exportButton.addEventListener('click', () => {
+    const dataStr = JSON.stringify(statistics.data, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.download = `task-statistics-${new Date().toISOString().split('T')[0]}.json`;
+    link.href = url;
+    link.click();
+  });
+  
+  reportContainer.appendChild(exportButton);
   
   // Return the statistics and the report element
   return {
     data: statistics,
-    reportElement: reportContainer
+    reportElement: reportContainer,
+    generatePDF: () => {
+      console.log('Generating PDF report...');
+      // Placeholder for PDF generation functionality
+      alert('PDF export functionality would go here');
+    }
   };
 }
-
 // Task rendering
 function renderTasks(filter = "") {
   taskList.innerHTML = "";
