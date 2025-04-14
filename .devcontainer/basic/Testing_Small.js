@@ -1,9 +1,12 @@
 const inputBox = document.getElementById("input-box");
 const listContainer = document.getElementById("list-container");
 
-
-
-
+function clearAllTasks() {
+    if (confirm("Are you sure you want to delete all tasks?")) {
+        listContainer.innerHTML = "";
+        saveData();
+    }
+}
 
 listContainer.addEventListener("click", function (e) {
     if (e.target.tagName === "LI") {
@@ -21,6 +24,9 @@ function saveData() {
 }
 
 function showTaskList () {
-    listContainer.innerHTML = localStorage.getItem("data");
+    const data = localStorage.getItem("data");
+    if (data) {
+        listContainer.innerHTML = data;
+    }
 }
 showTaskList();
