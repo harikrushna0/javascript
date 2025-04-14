@@ -2,15 +2,6 @@ const inputBox = document.getElementById("input-box");
 const listContainer = document.getElementById("list-container");
 
 
-console.clear();
-let name = prompt("Enter your name:");
-if (name) {
-  alert(`Hello, ${name}! 👋`);
-} else {
-  alert("You didn't enter a name.");
-}
-console.log("Script finished running.");
-
 
 
 function addTask() {
