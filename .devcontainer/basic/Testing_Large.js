@@ -507,32 +507,8 @@ function importTasks(json) {
       renderTasks();
     }
   } catch (e) {
-    console.error("Invalid JSON");
+    console.error("Invalid JSON seen");
   }
 }
 
-// Dummy UI updates
-function flashMessage(msg) {
-  const div = document.createElement("div");
-  div.textContent = msg;
-  div.className = "flash";
-  document.body.appendChild(div);
-  setTimeout(() => div.remove(), 2000);
-}
 
-// Example: simulate voice input
-function simulateVoiceCommand(command) {
-  if (command.startsWith("add ")) {
-    taskInput.value = command.slice(4);
-    addTask();
-  }
-}
-
-// Keyboard shortcut support
-document.addEventListener("keydown", e => {
-  if (e.ctrlKey && e.key === "s") {
-    e.preventDefault();
-    saveTasks();
-    flashMessage("Tasks saved");
-  }
-});
